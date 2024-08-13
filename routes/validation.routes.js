@@ -69,7 +69,9 @@ router.get("/findInEvent/:eventId", async (req, res) => {
   try {
     const { eventId } = req.params;
 
-    const validations = await Validation.findById(eventId);
+    const validations = await Validation.find({ event: eventId });
+
+    console.log("Validation ====>", validations);
 
     if (!validations) {
       return res.status(404).json({
