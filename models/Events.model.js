@@ -26,40 +26,50 @@ const eventSchema = new Schema(
   }
 );
 
-eventSchema.post("save", async () => {
-  const Layouts = model("Layouts");
-  const Validation = model("Validation");
-  //Create the Validation record
-  let layoutId = this.layout;
-  let layout = await Layouts.findById(layoutId);
+eventSchema.post("save", async function () {
+  console.log("======> Route Hittt");
 
-  let blocksArray = await layout.populate("blocks");
+  try {
+    const Layouts = model("Layouts");
+    const Validation = model("Validation");
+    //Create the Validation record
+    let layoutId = this.layout;
+    let layout = await Layouts.findById(layoutId);
 
-  let tables = [];
-  if (blocksArray.tables.length) {
-    blocksArray.forEach((block) => {
-      tables.push(block.tables);
+    let blocksArray = await layout.populate("blocks");
+
+    console.log("blockArray ===>", blocksArray)
+
+    let tables = [];
+    if (blocksArray.blocks && blocksArray.blocks.length) {
+      blocksArray.blocks.forEach((block) => {
+        if(block.tables.length){
+          tables.push(...block.tables)
+        }
+        // tables.push(block.tables);
+      });
+      tables = tables.flat();
+    }
+
+    let blockTickets = [];
+
+    blocksArray.blocks.forEach((block) => {
+      blockTickets.push({
+        blockId: block._id,
+        quantity: block.btickets,
+      });
     });
-    tables = tables.flat();
+
+    const newValidation = await Validation.create({
+      event: this._id,
+      layout: this.layout,
+      blocks: blockTickets,
+      tables: tables,
+    });
+    console.log("This is the new validation=========>", newValidation);
+  } catch (error) {
+    console.log("Validation Error:", error);
   }
-
-  let blockTickets = [];
-
-  blocksArray.forEach((block) => {
-    blockTickets.push({
-      blockId: block._id,
-      quantity: btickets,
-    });
-  });
-
-  const newValidation = await Validation.create({
-    event: this._id,
-    layout: this.layout,
-    blocks: blockTickets,
-    tables: tables,
-  });
-
-  console.log("This is the new validation=========>", newValidation);
 });
 
 eventSchema.methods.updateReferenceBasedAttributes = async function () {
