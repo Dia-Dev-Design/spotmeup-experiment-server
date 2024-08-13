@@ -16,6 +16,8 @@ const ticketSchema = new Schema({
   event: { type: Schema.Types.ObjectId, ref: "Events" },
   layout: { type: Schema.Types.ObjectId, ref: "Layouts" },
   block: { type: Schema.Types.ObjectId, ref: "Blocks" },
+  //add tableID, if any
+  //extras (bottles), if any
   transaction: { type: Schema.Types.ObjectId, ref: "Transaction" },
   email: { type: String },
 });

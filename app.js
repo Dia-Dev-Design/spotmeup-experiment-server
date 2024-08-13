@@ -15,10 +15,11 @@ var sectionRouter = require("./routes/section.routes");
 var seatsRouter = require("./routes/seats.routes");
 var tablesRouter = require("./routes/tables.routes");
 var authRouter = require("./routes/auth.routes");
-var shapeRouter = require("./routes/shape.routes")
-var eventRouter = require("./routes/event.routes")
-var ticketRouter = require("./routes/ticket.routes")
-var transactionRouter = require("./routes/transaction.routes")
+var shapeRouter = require("./routes/shape.routes");
+var eventRouter = require("./routes/event.routes");
+var ticketRouter = require("./routes/ticket.routes");
+var transactionRouter = require("./routes/transaction.routes");
+var validationRoutes = require("./routes/validation.routes");
 var seed = require("./routes/seed.route");
 
 var app = express();
@@ -38,9 +39,8 @@ app.enable("trust proxy");
 //   })
 // );
 
-app.use(
-    cors()
-  );
+app.use(cors());
+
 app.use("/", indexRouter);
 app.use("/users", usersRouter);
 app.use("/venue", venueRouter);
@@ -54,6 +54,7 @@ app.use("/shape", shapeRouter);
 app.use("/event", eventRouter);
 app.use("/ticket", ticketRouter);
 app.use("/transaction", transactionRouter);
+app.use("/validation", validationRoutes);
 app.use("/seed", seed);
 
 mongoose
@@ -66,4 +67,5 @@ mongoose
   .catch((err) => {
     console.error("Error connecting to mongo: ", err);
   });
+
 module.exports = app;

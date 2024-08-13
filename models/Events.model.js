@@ -2,7 +2,7 @@ const { Schema, model } = require("mongoose");
 const eventSchema = new Schema(
   {
     name: String,
-    images: [{type:String, default: ''}],
+    images: [{ type: String, default: "" }],
     eventType: String,
     status: { type: String, default: "Available" },
     hasVenue: Boolean,
@@ -13,7 +13,7 @@ const eventSchema = new Schema(
     saleStartDate: { type: String },
     saleStartTime: { type: String, default: "12:00:00" },
     address: Object,
-    purchaseLimit: {type: Number, default: 0},
+    purchaseLimit: { type: Number, default: 0 },
     // total
 
     venue: { type: Schema.Types.ObjectId, ref: "Venues" },
@@ -26,16 +26,52 @@ const eventSchema = new Schema(
   }
 );
 
+eventSchema.post("save", async () => {
+  const Layouts = model("Layouts");
+  const Validation = model("Validation");
+  //Create the Validation record
+  let layoutId = this.layout;
+  let layout = await Layouts.findById(layoutId);
+
+  let blocksArray = await layout.populate("blocks");
+
+  let tables = [];
+  if (blocksArray.tables.length) {
+    blocksArray.forEach((block) => {
+      tables.push(block.tables);
+    });
+    tables = tables.flat();
+  }
+
+  let blockTickets = [];
+
+  blocksArray.forEach((block) => {
+    blockTickets.push({
+      blockId: block._id,
+      quantity: btickets,
+    });
+  });
+
+  const newValidation = await Validation.create({
+    event: this._id,
+    layout: this.layout,
+    blocks: blockTickets,
+    tables: tables,
+  });
+
+  console.log("This is the new validation=========>", newValidation);
+});
+
 eventSchema.methods.updateReferenceBasedAttributes = async function () {
   if (this.hasVenue) {
     try {
-      await this.populate(
-        [{ path: "venue" },
+      await this.populate([
+        { path: "venue" },
         {
           path: "layout",
           populate: { path: "blocks" },
-        }]
-      );
+        },
+      ]);
       // const Blocks = model("Blocks")
       const [totalEarnings, ticketAmount, totalTicketsIncluded] =
         this.layout.blocks.reduce(
@@ -46,7 +82,11 @@ eventSchema.methods.updateReferenceBasedAttributes = async function () {
           ],
           [0, 0, 0]
         );
-      await this.updateOne({ totalEarnings, ticketAmount, totalTicketsIncluded });
+      await this.updateOne({
+        totalEarnings,
+        ticketAmount,
+        totalTicketsIncluded,
+      });
     } catch (error) {
       throw error;
     }

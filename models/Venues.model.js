@@ -18,24 +18,29 @@ const venueSchema = new Schema(
         "https://res.cloudinary.com/dg2rwod7i/image/upload/v1707111848/spotmeup/hwsw7dy5a9odkx6gkbot.jpg",
     },
     layouts: [{ type: Schema.Types.ObjectId, ref: "Layouts" }],
-    owner: {type: Schema.Types.ObjectId, ref: "Users"}
+    owner: { type: Schema.Types.ObjectId, ref: "Users" },
+    //available extras (like bottles), if any
   },
   {
     timestamps: true,
   }
 );
 
-venueSchema.pre("deleteOne", {document:true, query:false}, async function (next) {
-  const Layouts = model("Layouts")
-  try {
-    const layouts = await Layouts.find({venue:this._id})
-    console.log("Deleting layout from venue");
-    await Promise.all(layouts.map((layout) => layout.deleteOne().exec()))
-    next();
-  } catch (error) {
-    console.error("Cascade Delete Error On Venues Model");
-    throw error;
+venueSchema.pre(
+  "deleteOne",
+  { document: true, query: false },
+  async function (next) {
+    const Layouts = model("Layouts");
+    try {
+      const layouts = await Layouts.find({ venue: this._id });
+      console.log("Deleting layout from venue");
+      await Promise.all(layouts.map((layout) => layout.deleteOne().exec()));
+      next();
+    } catch (error) {
+      console.error("Cascade Delete Error On Venues Model");
+      throw error;
+    }
   }
-});
+);
 
 module.exports = model("Venues", venueSchema);
