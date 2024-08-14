@@ -23,9 +23,18 @@ router.put("/update-validation/:transactionId", async (req, res) => {
   try {
     const { transactionId } = req.params;
 
-    const tickets = await Tickets.find({ transaction: transactionId }).populate(
-      { path: "block", populate: "tables", model: "Tables" }
+    const preTickets = await Tickets.find({ transaction: transactionId });
+
+    const ticketsArray = preTickets.map(
+      async (ticket) =>
+        await ticket.populate({ path: "block", populate: { path: "tables" } })
     );
+
+    const resolvedTickets = await Promise.allSettled(ticketsArray);
+
+    const tickets = resolvedTickets.map((ticket) => {
+      return { ...ticket.value._doc };
+    });
 
     if (tickets.length === 0) {
       return res.status(400).json({
@@ -35,9 +44,12 @@ router.put("/update-validation/:transactionId", async (req, res) => {
     }
     const allActive = tickets.every((ticket) => ticket.status === "active");
     if (!allActive) {
-      return res
-        .status(400)
-        .json({ success: false, message: "All tickets are not active." });
+      return res.status(400).json({
+        success: false,
+        message: "All tickets are not active.",
+        allActive,
+        tickets,
+      });
     }
     const event = tickets[0].event;
     const layout = tickets[0].layout;
@@ -57,16 +69,28 @@ router.put("/update-validation/:transactionId", async (req, res) => {
         );
 
         if (blockIndex !== -1) {
+          let fromBlock
+          let fromValidation
+          let serverMessage
           if (ticket.block.tables && ticket.block.tables.length > 0) {
-            const tableIndex = validation.tables.findIndex((table) =>
-              table.tableId.equals(ticket.block.tables._id)
+            serverMessage = "HI I'm here at 75!!!!!!!!!"
+            const tableIndex = validation.tables.findIndex((table) => {
+              fromBlock = ticket.block.tables[blockIndex]._id
+              fromValidation = table.tableId
+              return table.tableId.equals(ticket.block.tables[blockIndex]._id)
+            }
             );
             if (tableIndex !== -1) {
               validation.tables[tableIndex].sold = true;
             } else {
-              return res
-                .status(400)
-                .json({ success: false, message: "Table not found." });
+              return res.status(400).json({
+                success: false,
+                message: "Table not found.",
+                blockIndex,
+                fromBlock,
+                fromValidation,
+                serverMessage
+              });
             }
           } else {
             validation.blocks[blockIndex].quantity -= 1;
@@ -79,11 +103,14 @@ router.put("/update-validation/:transactionId", async (req, res) => {
         }
       }
     });
+
     await validation.save();
 
-    return res
-      .status(200)
-      .json({ success: true, message: "Validation updated successfuly." });
+    return res.status(200).json({
+      success: true,
+      message: "Validation updated successfuly.",
+      validation: validation,
+    });
   } catch (error) {
     console.error("Internal Server Error:", error.message);
     return res
@@ -92,7 +119,7 @@ router.put("/update-validation/:transactionId", async (req, res) => {
   }
 });
 
-router.get("", async (req, res) => {
+router.get("/findInEvent/:eventId", async (req, res) => {
   try {
     const { eventId } = req.params;
 

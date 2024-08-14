@@ -10,7 +10,8 @@ const validationSchema = new Schema(
         quantity: {
           type: Number,
           default: 0,
-        },
+        },       
+        _id: false 
       },
     ],
     tables: [
@@ -20,6 +21,7 @@ const validationSchema = new Schema(
           type: Boolean,
           default: false,
         },
+        _id: false 
       },
     ],
   },
