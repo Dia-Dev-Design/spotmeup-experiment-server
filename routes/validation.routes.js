@@ -69,17 +69,16 @@ router.put("/update-validation/:transactionId", async (req, res) => {
         );
 
         if (blockIndex !== -1) {
-          let fromBlock
-          let fromValidation
-          let serverMessage
+          let fromBlock;
+          let fromValidation;
+          let serverMessage;
           if (ticket.block.tables && ticket.block.tables.length > 0) {
-            serverMessage = "HI I'm here at 75!!!!!!!!!"
+            serverMessage = "HI I'm here at 75!!!!!!!!!";
             const tableIndex = validation.tables.findIndex((table) => {
-              fromBlock = ticket.block.tables[blockIndex]._id
-              fromValidation = table.tableId
-              return table.tableId.equals(ticket.block.tables[blockIndex]._id)
-            }
-            );
+              fromBlock = ticket.block.tables[blockIndex]._id;
+              fromValidation = table.tableId;
+              return table.tableId.equals(ticket.block.tables[blockIndex]._id);
+            });
             if (tableIndex !== -1) {
               validation.tables[tableIndex].sold = true;
             } else {
@@ -89,7 +88,7 @@ router.put("/update-validation/:transactionId", async (req, res) => {
                 blockIndex,
                 fromBlock,
                 fromValidation,
-                serverMessage
+                serverMessage,
               });
             }
           } else {
@@ -103,6 +102,8 @@ router.put("/update-validation/:transactionId", async (req, res) => {
         }
       }
     });
+
+    console.log("What we are saving ===>", validation);
 
     await validation.save();
 

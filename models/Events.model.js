@@ -65,13 +65,19 @@ eventSchema.post("save", async function () {
       });
     });
 
-    const newValidation = await Validation.create({
-      event: this._id,
-      layout: this.layout,
-      blocks: blockTickets,
-      tables: tables,
-    });
-    console.log("This is the new validation=========>", newValidation);
+    let existingValidation = await Validation.findOne({event: this._id, layout: this.layout})
+
+    if (!existingValidation) {
+      
+      const newValidation = await Validation.create({
+        event: this._id,
+        layout: this.layout,
+        blocks: blockTickets,
+        tables: tables,
+      });
+      console.log("This is the new validation=========>", newValidation);
+    }
+
   } catch (error) {
     console.log("Validation Error:", error);
   }
