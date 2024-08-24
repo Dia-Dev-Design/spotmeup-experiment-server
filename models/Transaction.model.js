@@ -14,6 +14,7 @@ const transactionSchema = new Schema(
     buyer: { type: Schema.Types.ObjectId, ref: "Users" },
     seller: { type: Schema.Types.ObjectId, ref: "Users" },
     email: { type: String },
+    tickets: [{type: Schema.Types.ObjectId, ref: "Ticket"}]
   },
   {
     timestamps: true,

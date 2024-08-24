@@ -38,18 +38,18 @@ eventSchema.post("save", async function () {
 
     let blocksArray = await layout.populate("blocks");
 
-    console.log("blockArray ===>", blocksArray);
+    // console.log("blockArray ===>", blocksArray);
 
     let tables = [];
     if (blocksArray.blocks && blocksArray.blocks.length) {
       blocksArray.blocks.forEach((block) => {
-        const tablesStrucute = block.tables.map((table) => ({
+        const tablesStructure = block.tables.map((table) => ({
           tableId: table._id,
           sold: false,
         }));
 
         if (block.tables.length) {
-          tables.push(...tablesStrucute);
+          tables.push(...tablesStructure);
         }
         // tables.push(block.tables);
       });

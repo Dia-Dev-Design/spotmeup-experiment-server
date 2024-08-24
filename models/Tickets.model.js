@@ -37,4 +37,4 @@ ticketSchema.pre("save", async function (next) {
   }
 });
 
-module.exports = model("Tickets", ticketSchema);
+module.exports = model("Ticket", ticketSchema);
