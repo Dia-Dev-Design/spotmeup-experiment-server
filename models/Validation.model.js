@@ -4,7 +4,7 @@ const validationSchema = new Schema(
   {
     event: { type: Schema.Types.ObjectId, ref: "Events" },
     layout: { type: Schema.Types.ObjectId, ref: "Layouts" },
-    blocks: [
+    areas: [
       {
         blockId: Schema.Types.ObjectId,
         quantity: {

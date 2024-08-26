@@ -20,6 +20,8 @@ const ticketSchema = new Schema({
   //extras (bottles), if any
   transaction: { type: Schema.Types.ObjectId, ref: "Transaction" },
   email: { type: String },
+}, {
+  timestamps: true
 });
 
 ticketSchema.pre("save", async function (next) {

@@ -18,7 +18,9 @@ const isValidTimeFormat = (timeString) => {
   return regex.test(timeString);
 };
 
-router.post("/create", isAuthenticated, async (req, res) => {
+router.post("/create", 
+  isAuthenticated, 
+  async (req, res) => {
   console.log("Event Body ===>", req.body);
   try {
     if (!req.user._id) {

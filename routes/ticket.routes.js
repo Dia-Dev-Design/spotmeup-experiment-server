@@ -5,6 +5,7 @@ const Events = require("../models/Events.model");
 const Layouts = require("../models/Layouts.model");
 const Blocks = require("../models/Blocks.model");
 const Transactions = require("../models/Transaction.model.js");
+const Validation = require('../models/Validation.model.js')
 const transporter = require("../configs/nodemailer.config.js");
 var router = express.Router();
 
@@ -77,12 +78,6 @@ router.post("/create", async (req, res) => {
     }
     const ticket = await Ticket.create({ ...req.body });
 
-    // if (transaction.tickets.length) {
-    //   transaction.tickets = [...transaction.tickets, ticket._id];
-    // } else {
-    //   transaction.tickets = [ticket._id];
-    // }
-
     await Transactions.findByIdAndUpdate(transaction._id, {
       $push: { tickets: ticket._id}
     })
@@ -95,6 +90,13 @@ router.post("/create", async (req, res) => {
 
     await event.save();
     await ticket.populate("event layout block");
+
+    // let validationRecord = Validation.findOne({event: event._id})
+
+    // if (ticket.block & ticket.block.tables && ticket.block.tables.length) {
+    //   console.log("This is the ticket purchased from a table==========>", ticket)
+    // }
+
 
     return res
       .status(201)

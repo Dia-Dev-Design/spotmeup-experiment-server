@@ -27,7 +27,6 @@ const eventSchema = new Schema(
 );
 
 eventSchema.post("save", async function () {
-  console.log("======> Route Hittt");
 
   try {
     const Layouts = model("Layouts");
@@ -37,8 +36,6 @@ eventSchema.post("save", async function () {
     let layout = await Layouts.findById(layoutId);
 
     let blocksArray = await layout.populate("blocks");
-
-    // console.log("blockArray ===>", blocksArray);
 
     let tables = [];
     if (blocksArray.blocks && blocksArray.blocks.length) {
@@ -51,9 +48,7 @@ eventSchema.post("save", async function () {
         if (block.tables.length) {
           tables.push(...tablesStructure);
         }
-        // tables.push(block.tables);
       });
-      // tables = tables.flat();
     }
 
     let blockTickets = [];
@@ -65,19 +60,26 @@ eventSchema.post("save", async function () {
       });
     });
 
-    let existingValidation = await Validation.findOne({event: this._id, layout: this.layout})
+    blockTickets = blockTickets.filter(
+      (block) =>
+        !blocksArray.blocks
+          .map((block) => (block.tables.length ? block._id : ""))
+          .includes(block.blockId)
+    );
+
+    let existingValidation = await Validation.findOne({
+      event: this._id,
+      layout: this.layout,
+    });
 
     if (!existingValidation) {
-      
       const newValidation = await Validation.create({
         event: this._id,
         layout: this.layout,
-        blocks: blockTickets,
+        areas: blockTickets,
         tables: tables,
       });
-      console.log("This is the new validation=========>", newValidation);
     }
-
   } catch (error) {
     console.log("Validation Error:", error);
   }

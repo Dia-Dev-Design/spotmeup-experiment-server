@@ -64,9 +64,13 @@ router.put("/update-validation/:transactionId", async (req, res) => {
 
     tickets.forEach((ticket) => {
       if (ticket.block) {
-        const blockIndex = validation.blocks.findIndex((block) =>
+        const blockIndex = validation.tables.findIndex((block) =>
           block.blockId.equals(ticket.block._id)
         );
+
+        //This is the area to fix!!!!!!
+
+        console.log("What is the block Index???????????", blockIndex)
 
         if (blockIndex !== -1) {
           let fromBlock;
@@ -92,7 +96,7 @@ router.put("/update-validation/:transactionId", async (req, res) => {
               });
             }
           } else {
-            validation.blocks[blockIndex].quantity -= 1;
+            validation.areas[blockIndex].quantity -= 1;
           }
         } else {
           return res.status(400).json({
