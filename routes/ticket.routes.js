@@ -9,6 +9,8 @@ const Validation = require('../models/Validation.model.js')
 const transporter = require("../configs/nodemailer.config.js");
 var router = express.Router();
 
+const { createTicket, updateValidation } = require('../controllers/ticket.controller.js')
+
 const QRCode = require("qrcode");
 const cloudinary = require("cloudinary").v2;
 
@@ -44,70 +46,12 @@ const uploadQRCodeToCloudinary = async (dataUrl) => {
   }
 };
 
-router.post("/create", async (req, res) => {
-  console.log("Tickets Create:", req.body);
-  try {
-    const event = await Events.findById(req.body.event);
-    if (!event) {
-      console.log("Invalid Event Id!");
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid Event Id!" });
-    }
-    const layout = await Layouts.findById(req.body.layout);
-    if (!layout) {
-      console.log("Invalid Layout Id!");
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid Layout Id!" });
-    }
-    const block = await Blocks.findById(req.body.block);
-    if (!block) {
-      console.log("Invalid Block Id!");
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid Block Id!" });
-    }
-    const transaction = await Transactions.findById(req.body.transaction);
-    console.log("This is the found transaction", transaction);
-    if (!transaction) {
-      console.log("Invalid transaction Id!");
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid transaction Id!" });
-    }
-    const ticket = await Ticket.create({ ...req.body });
-
-    await Transactions.findByIdAndUpdate(transaction._id, {
-      $push: { tickets: ticket._id}
-    })
-
-    if (event.tickets.length) {
-      event.tickets.push(ticket._id);
-    } else {
-      event.tickets = [ticket._id];
-    }
-
-    await event.save();
-    await ticket.populate("event layout block");
-
-    // let validationRecord = Validation.findOne({event: event._id})
-
-    // if (ticket.block & ticket.block.tables && ticket.block.tables.length) {
-    //   console.log("This is the ticket purchased from a table==========>", ticket)
-    // }
 
 
-    return res
-      .status(201)
-      .json({ success: true, message: "Ticket Created Successfully!", ticket });
-  } catch (error) {
-    console.error("Internal Server Error:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, message: "Internal Server Error!" });
-  }
-});
+router.post("/create", createTicket, updateValidation);
+
+
+
 
 router.post("/:transactionId/send-email", async (req, res) => {
   try {
