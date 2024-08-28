@@ -7,6 +7,8 @@ const transporter = require("../configs/nodemailer.config.js");
 const QRCode = require('qrcode');
 const { v4: uuidv4 } = require("uuid");
 
+const { generateTickets, updateValidation } = require('../controllers/ticket.controller.js')
+
 
 const cloudinary = require('cloudinary').v2;
 
@@ -154,6 +156,13 @@ router.get('/get-count', async (req, res, next) => {
   } catch (err) {
     res.status(500).json("Message needs an argument")
   }
+})
+
+router.get('/approved/:eventId/:transactionId', generateTickets, updateValidation, (req, res) => {
+
+  const { eventId, transactionId } = req.params
+  //redirecting to React App / Client
+  res.redirect(`http://localhost:5173/approved/${eventId}/${transactionId}`)
 })
 
 

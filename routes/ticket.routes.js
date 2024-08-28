@@ -5,11 +5,14 @@ const Events = require("../models/Events.model");
 const Layouts = require("../models/Layouts.model");
 const Blocks = require("../models/Blocks.model");
 const Transactions = require("../models/Transaction.model.js");
-const Validation = require('../models/Validation.model.js')
+const Validation = require("../models/Validation.model.js");
 const transporter = require("../configs/nodemailer.config.js");
 var router = express.Router();
 
-const { createTicket, updateValidation } = require('../controllers/ticket.controller.js')
+const {
+  createTicket,
+  updateValidation,
+} = require("../controllers/ticket.controller.js");
 
 const QRCode = require("qrcode");
 const cloudinary = require("cloudinary").v2;
@@ -45,13 +48,6 @@ const uploadQRCodeToCloudinary = async (dataUrl) => {
     console.error("Cloudinary Upload Error:", err);
   }
 };
-
-
-
-router.post("/create", createTicket, updateValidation);
-
-
-
 
 router.post("/:transactionId/send-email", async (req, res) => {
   try {
