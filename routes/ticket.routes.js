@@ -60,6 +60,7 @@ router.post("/:transactionId/send-email", async (req, res) => {
         .status(400)
         .json({ success: false, message: "Failed to send tickets via email!" });
     }
+    console.log("These are the tickets++++++++>", tickets)
     const qrCodeDataUrlArray = await generateQRCodes(
       tickets.map((ticket) => ticket.qrCode)
     );
