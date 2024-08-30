@@ -15,7 +15,7 @@ const generateTickets = async (req, res, next) => {
     const thisTransaction = await Transactions.findById(transactionId);
 
     let allTickets = thisTransaction.items.map((ticket) => {
-      return {
+      return new Ticket({
         name: ticket?.name,
         eventDate: thisEvent.event?.date,
         eventTime: thisEvent.event?.time,
@@ -26,18 +26,22 @@ const generateTickets = async (req, res, next) => {
         block: ticket.hasTables ? ticket.id : ticket.blockId,
         transaction: thisTransaction._id,
         email: thisTransaction.email,
-      };
+      });
     });
 
-    let createdTickets = await Ticket.insertMany(allTickets);
+    let preTickets = allTickets.map((ticket) => {
+      return ticket.save();
+    });
 
-    thisTransaction.tickets = createdTickets.map((ticket) => ticket._id);
+    let createdTickets = await Promise.allSettled(preTickets);
+
+    thisTransaction.tickets = createdTickets.map((ticket) => ticket.value._id);
 
     createdTickets.forEach((ticket) => {
       if (thisEvent.tickets.length) {
-        thisEvent.tickets.push(ticket._id);
+        thisEvent.tickets.push(ticket.value._id);
       } else {
-        thisEvent.tickets = [ticket._id];
+        thisEvent.tickets = [ticket.value._id];
       }
     });
 
@@ -45,7 +49,7 @@ const generateTickets = async (req, res, next) => {
     let updatedEvent = await thisEvent.save();
 
     req.transaction = updatedTransaction;
-    req.tickets = createdTickets;
+    req.tickets = createdTickets.map((ticket) => ticket.value);
     req.event = updatedEvent;
 
     next();
@@ -58,23 +62,29 @@ const updateValidation = async (req, res, next) => {
   try {
     const { tickets, event } = req;
 
+    console.log("These are the created tickets ========>", tickets);
+
     const validationRecord = await Validation.findOne({ event: event._id });
 
     for (let i = 0; i < tickets.length; i++) {
-        let foundTable = await Table.findById(tickets[i].block)
+      let foundTable = await Table.findById(tickets[i].block);
 
-        if (foundTable) {
-            let thisIndex = validationRecord.tables.findIndex((table) => table.tableId.toString() === tickets[i].block.toString());    
-            validationRecord.tables[thisIndex].sold = true;
-          } else {
-            let thisIndex = validationRecord.areas.findIndex((area) => area.blockId.toString() === tickets[i].block.toString());
-            validationRecord.areas[thisIndex].quantity -= 1;
-          }
+      if (foundTable) {
+        let thisIndex = validationRecord.tables.findIndex(
+          (table) => table.tableId.toString() === tickets[i].block.toString()
+        );
+        validationRecord.tables[thisIndex].sold = true;
+      } else {
+        let thisIndex = validationRecord.areas.findIndex(
+          (area) => area.blockId.toString() === tickets[i].block.toString()
+        );
+        validationRecord.areas[thisIndex].quantity -= 1;
+      }
     }
 
     let updatedValidation = await validationRecord.save();
 
-    req.validation = updatedValidation
+    req.validation = updatedValidation;
 
     next();
   } catch (err) {
