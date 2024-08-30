@@ -6,7 +6,7 @@ const tableSchema = new Schema(
     status: String,
     tprice: {type:Number, default:0},
     tickets: {type:Number, default:0},
-    ticketsIncluded: { type: Number, default: 0 },
+    ticketsIncluded: { type: Number, default: 2 },
     isIncluded: { type: Boolean, default: true },
     isBlockMatched: Boolean,
     minimumConsumptionAvailable: { type: Boolean, default: false },

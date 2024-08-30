@@ -7,6 +7,8 @@ const transporter = require("../configs/nodemailer.config.js");
 const QRCode = require('qrcode');
 const { v4: uuidv4 } = require("uuid");
 
+const { generateTickets, updateValidation } = require('../controllers/ticket.controller.js')
+
 
 const cloudinary = require('cloudinary').v2;
 
@@ -72,8 +74,7 @@ router.post('/send-email', async (req, res) => {
 
 router.post("/create", async (req, res) => {
   try {
-    const transaction = new Transactions(req.body);
-    await transaction.save();
+    const transaction = await Transactions.create(req.body);
     return res
       .status(201)
       .json({ success: true, message: "Transaction Created!", transaction });
@@ -86,12 +87,13 @@ router.post("/create", async (req, res) => {
 router.get("/:transactionId/find", async (req, res) => {
   try {
     const transaction = await Transactions.findById(req.params.transactionId);
+    let populatedTransaction = await transaction.populate("tickets")
     if (!transaction) {
       return res
         .status(400)
         .json({ success: true, message: "Transaction Not Found!" });
     }
-    return res.status(200).json({ success: true, message: "OK!", transaction });
+    return res.status(200).json({ success: true, message: "OK!", transaction: populatedTransaction });
   } catch (error) {
     console.error("Error:", error.message);
     return res
@@ -99,6 +101,7 @@ router.get("/:transactionId/find", async (req, res) => {
       .json({ success: false, message: "Internal Server Error!" });
   }
 });
+
 router.get("/findAll", async (req, res) => {
   try {
     const transactions = await Transactions.find();
@@ -121,6 +124,7 @@ router.get("/findAll", async (req, res) => {
       .json({ success: false, message: "Internal Server Error!" });
   }
 });
+
 router.get("/user/findAll", isAuthenticated, async (req, res) => {
   try {
     const transactions = await Transactions.find({ buyer: req.user });
@@ -141,6 +145,26 @@ router.get("/user/findAll", isAuthenticated, async (req, res) => {
       .json({ success: false, message: "Internal Server Error!" });
   }
 });
+
+
+router.get('/get-count', async (req, res, next) => {
+  try {
+    const count = await Transactions.countDocuments()
+    console.log("This is the number of transactions========>", count)
+    res.status(200).json( count )
+
+  } catch (err) {
+    res.status(500).json("Message needs an argument")
+  }
+})
+
+router.get('/approved/:eventId/:transactionId', generateTickets, updateValidation, (req, res) => {
+
+  const { eventId, transactionId } = req.params
+  //redirecting to React App / Client
+  res.redirect(`http://localhost:5173/approved/${eventId}/${transactionId}`)
+})
+
 
 module.exports = router;
 

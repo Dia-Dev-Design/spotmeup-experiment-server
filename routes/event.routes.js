@@ -1,9 +1,13 @@
 var express = require("express");
 var router = express.Router();
 const isAuthenticated = require("../middleware/isAuthenticated");
+
 const Events = require("../models/Events.model");
+const Layouts = require("../models/Layouts.model");
+
 const fileUploader = require("../configs/cloudinary.config");
 const cloudinary = require("cloudinary").v2;
+
 const isValidDateFormat = (dateString) => {
   const regex = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/;
   return regex.test(dateString);
@@ -14,7 +18,9 @@ const isValidTimeFormat = (timeString) => {
   return regex.test(timeString);
 };
 
-router.post("/create", isAuthenticated, async (req, res) => {
+router.post("/create", 
+  isAuthenticated, 
+  async (req, res) => {
   console.log("Event Body ===>", req.body);
   try {
     if (!req.user._id) {
@@ -67,6 +73,7 @@ router.post("/create", isAuthenticated, async (req, res) => {
     const event = new Events({ ...req.body, host: req.params.userId });
     await event.save();
     console.log("Event Success ==>>", event);
+
     return res.status(201).json({
       success: true,
       message: `Event "${req.body.name}" created successfully!`,
@@ -138,9 +145,9 @@ router.post(
           .json({ success: false, message: "Failed To Upload Image(s)!" });
       }
       const event = await Events.findById(req.params.eventId);
-      if(event.images[0] === ""){
+      if (event.images[0] === "") {
         event.images = [...req.files.map((file) => file.path)];
-      }else{
+      } else {
         event.images = [...event.images, ...req.files.map((file) => file.path)];
       }
       await event.save();
