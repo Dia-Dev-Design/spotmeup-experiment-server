@@ -1,18 +1,15 @@
 var express = require("express");
+var router = express.Router();
+
 const isAuthenticated = require("../middleware/isAuthenticated.js");
+const transporter = require("../configs/nodemailer.config.js");
+
 const Ticket = require("../models/Tickets.model");
 const Events = require("../models/Events.model");
 const Layouts = require("../models/Layouts.model");
 const Blocks = require("../models/Blocks.model");
 const Transactions = require("../models/Transaction.model.js");
 const Validation = require("../models/Validation.model.js");
-const transporter = require("../configs/nodemailer.config.js");
-var router = express.Router();
-
-const {
-  createTicket,
-  updateValidation,
-} = require("../controllers/ticket.controller.js");
 
 const QRCode = require("qrcode");
 const cloudinary = require("cloudinary").v2;
@@ -50,35 +47,51 @@ const uploadQRCodeToCloudinary = async (dataUrl) => {
 };
 
 router.post("/:transactionId/send-email", async (req, res) => {
+
   try {
+    const transaction = await Transactions.findById(req.params.transactionId)
     const tickets = await Ticket.find({
       transaction: req.params.transactionId,
     });
+    
     if (!tickets.length) {
       console.error("Failed to send tickets via email!");
       return res
         .status(400)
         .json({ success: false, message: "Failed to send tickets via email!" });
     }
-    console.log("These are the tickets++++++++>", tickets)
+
     const qrCodeDataUrlArray = await generateQRCodes(
       tickets.map((ticket) => ticket.qrCode)
     );
+
     const qrCodeImageUrlArray = await Promise.all(
       qrCodeDataUrlArray.map((dataUrl) => uploadQRCodeToCloudinary(dataUrl))
     );
+
     htmlimgs = qrCodeImageUrlArray
       .map((imgUrl) => `<img src="${imgUrl}" alt="QR Code">`)
       .join("\n");
+
     const html = ` <div>
-    <h1>Hello Test,</h1>
-    <p>Thank you for joining our platform. We're excited to have you on board!</p>
-    <p>Your username is: Test</p>
-    <p>Scan the QR code below to access your personalized link:</p>
-    ${htmlimgs}
-    <p>Best regards,</p>
-    <p>The Team</p>
-  </div>`;
+                    <h1>Hello!</h1>
+                    <p>Thank you for buying ${transaction.description} We hope you have A great time!</p>
+                    <p>Scan the QR code below at event entry:</p>
+                      ${htmlimgs}
+                    <p>Best regards,</p>
+                    <p>The SpotMeUp Team</p>
+                  </div>`;
+
+    // const html = ` <div>
+    //                 <h1>Hello Test,</h1>
+    //                 <p>Thank you for joining our platform. We're excited to have you on board!</p>
+    //                 <p>Your username is: Test</p>
+    //                 <p>Scan the QR code below to access your personalized link:</p>
+    //                 ${htmlimgs}
+    //                 <p>Best regards,</p>
+    //                 <p>The Team</p>
+    //               </div>`;
+                  
     const mailOptions = {
       from: process.env.SMTP_AUTH_USER,
       to: tickets[0].email,
@@ -87,10 +100,11 @@ router.post("/:transactionId/send-email", async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    return res.status(200).json({ message: "Email sent successfully!" });
+
+    return res.status(200).json({ success: true, message: "Email sent successfully!" });
   } catch (error) {
     console.error("Error sending email:", error);
-    res.status(500).json({ error: "Failed to send email" });
+    res.status(500).json({ error, messsage: "Failed to send email" });
   }
 });
 
@@ -128,6 +142,7 @@ router.put("/:ticketId/edit", async (req, res) => {
       .json({ success: false, message: "Internal Server Error!" });
   }
 });
+
 router.get("/:ticketId/find", async (req, res) => {
   try {
     const ticket = await Ticket.findById(req.params.eventId).populate(
@@ -198,6 +213,7 @@ router.get("/user/findAll", isAuthenticated, async (req, res) => {
       .json({ success: false, message: "Internal Server Error!" });
   }
 });
+
 router.get("/findAll", async (req, res) => {
   try {
     const tickets = await Ticket.find().populate("buyer", "event");
@@ -218,6 +234,7 @@ router.get("/findAll", async (req, res) => {
       .json({ success: false, message: "Internal Server Error!" });
   }
 });
+
 router.get("/:qrCode/validate", async (req, res) => {
   try {
     const ticket = Ticket.findOne({ qrCode: req.params.qrCode });
@@ -247,6 +264,7 @@ router.get("/:qrCode/validate", async (req, res) => {
       .json({ success: false, message: "Internal Server Error!" });
   }
 });
+
 router.delete("/:ticketId/delete", async (req, res) => {
   try {
     const ticket = await Ticket.findById(req.params.eventId);
