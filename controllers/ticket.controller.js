@@ -36,6 +36,7 @@ const generateTickets = async (req, res, next) => {
     let createdTickets = await Promise.allSettled(preTickets);
 
     thisTransaction.tickets = createdTickets.map((ticket) => ticket.value._id);
+    thisTransaction.status = 'completed'
 
     createdTickets.forEach((ticket) => {
       if (thisEvent.tickets.length) {
