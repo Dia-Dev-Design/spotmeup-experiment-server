@@ -62,9 +62,7 @@ const generateTickets = async (req, res, next) => {
 const updateValidation = async (req, res, next) => {
   try {
     const { tickets, event } = req;
-
-    console.log("These are the created tickets ========>", tickets);
-
+    
     const validationRecord = await Validation.findOne({ event: event._id });
 
     for (let i = 0; i < tickets.length; i++) {
