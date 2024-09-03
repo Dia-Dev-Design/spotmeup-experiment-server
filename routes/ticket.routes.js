@@ -73,7 +73,7 @@ router.post("/:transactionId/send-email", async (req, res) => {
       .map((imgUrl) => `<img src="${imgUrl}" alt="QR Code">`)
       .join("\n");
 
-    const html = ` <div>
+    const html = `<div>
                     <h1>Hello!</h1>
                     <p>Thank you for buying ${transaction.description} We hope you have A great time!</p>
                     <p>Scan the QR code below at event entry:</p>
