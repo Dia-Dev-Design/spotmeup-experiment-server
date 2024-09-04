@@ -47,13 +47,12 @@ const uploadQRCodeToCloudinary = async (dataUrl) => {
 };
 
 router.post("/:transactionId/send-email", async (req, res) => {
-
   try {
-    const transaction = await Transactions.findById(req.params.transactionId)
+    const transaction = await Transactions.findById(req.params.transactionId);
     const tickets = await Ticket.find({
       transaction: req.params.transactionId,
     });
-    
+
     if (!tickets.length) {
       console.error("Failed to send tickets via email!");
       return res
@@ -91,7 +90,7 @@ router.post("/:transactionId/send-email", async (req, res) => {
     //                 <p>Best regards,</p>
     //                 <p>The Team</p>
     //               </div>`;
-                  
+
     const mailOptions = {
       from: process.env.SMTP_AUTH_USER,
       to: tickets[0].email,
@@ -101,10 +100,14 @@ router.post("/:transactionId/send-email", async (req, res) => {
 
     await transporter.sendMail(mailOptions);
 
-    return res.status(200).json({ success: true, message: "Email sent successfully!" });
+    return res
+      .status(200)
+      .json({ success: true, message: "Email sent successfully!" });
   } catch (error) {
-    console.error("Error sending email:", error);
-    res.status(500).json({ error, messsage: "Failed to send email" });
+    console.error("Error sending email:", error.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to send email", error });
   }
 });
 
@@ -235,7 +238,7 @@ router.get("/findAll", async (req, res) => {
   }
 });
 
-router.get("/:qrCode/validate", async (req, res) => {
+router.get("/:eventId/:qrCode/validate", async (req, res) => {
   try {
     const ticket = Ticket.findOne({ qrCode: req.params.qrCode });
     if (!ticket) {
@@ -243,7 +246,16 @@ router.get("/:qrCode/validate", async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Ticket Invalid" });
-    } else if (
+    }
+
+    if (ticket.event !== req.params.eventId) {
+      console.error("This qrcode does not belong to this event.");
+      return res
+        .status(400)
+        .json({ success: false, message: "Ticket Invalid" });
+    }
+
+    if (
       ticket.status.toLowerCase() === "canceled" ||
       ticket.status.toLowerCase() === "expired"
     ) {
@@ -264,6 +276,14 @@ router.get("/:qrCode/validate", async (req, res) => {
       .json({ success: false, message: "Internal Server Error!" });
   }
 });
+
+// router.get("/:qrCode/validate", async (req, res) =>{
+//   try {
+//     const ticket = Ticket.findOne({qrCode})
+//   } catch (error) {
+
+//   }
+// }
 
 router.delete("/:ticketId/delete", async (req, res) => {
   try {
