@@ -5,10 +5,10 @@ const isAuthenticated = require("../middleware/isAuthenticated.js");
 const transporter = require("../configs/nodemailer.config.js");
 
 const Ticket = require("../models/Tickets.model");
+const Transactions = require("../models/Transaction.model.js");
 const Events = require("../models/Events.model");
 const Layouts = require("../models/Layouts.model");
 const Blocks = require("../models/Blocks.model");
-const Transactions = require("../models/Transaction.model.js");
 const Validation = require("../models/Validation.model.js");
 
 const QRCode = require("qrcode");
@@ -47,13 +47,12 @@ const uploadQRCodeToCloudinary = async (dataUrl) => {
 };
 
 router.post("/:transactionId/send-email", async (req, res) => {
-
   try {
-    const transaction = await Transactions.findById(req.params.transactionId)
+    const transaction = await Transactions.findById(req.params.transactionId);
     const tickets = await Ticket.find({
       transaction: req.params.transactionId,
     });
-    
+
     if (!tickets.length) {
       console.error("Failed to send tickets via email!");
       return res
@@ -91,7 +90,7 @@ router.post("/:transactionId/send-email", async (req, res) => {
     //                 <p>Best regards,</p>
     //                 <p>The Team</p>
     //               </div>`;
-                  
+
     const mailOptions = {
       from: process.env.SMTP_AUTH_USER,
       to: tickets[0].email,
@@ -101,7 +100,9 @@ router.post("/:transactionId/send-email", async (req, res) => {
 
     await transporter.sendMail(mailOptions);
 
-    return res.status(200).json({ success: true, message: "Email sent successfully!" });
+    return res
+      .status(200)
+      .json({ success: true, message: "Email sent successfully!" });
   } catch (error) {
     console.error("Error sending email:", error);
     res.status(500).json({ error, messsage: "Failed to send email" });
@@ -235,15 +236,28 @@ router.get("/findAll", async (req, res) => {
   }
 });
 
-router.get("/:qrCode/validate", async (req, res) => {
+router.get("/:eventId/:qrCode/validate", async (req, res) => {
   try {
-    const ticket = Ticket.findOne({ qrCode: req.params.qrCode });
+    const ticket = await Ticket.findOne({ qrCode: req.params.qrCode });
     if (!ticket) {
       console.error("This ticket has an invalid qrCode!");
       return res
         .status(400)
         .json({ success: false, message: "Ticket Invalid" });
-    } else if (
+    }
+
+    console.log("ticket.event =====>:", ticket.event.toString());
+    console.log("req.params.eventId =====>:", req.params.eventId);
+
+    if (ticket.event.toString() !== req.params.eventId) {
+      console.error("This qrcode does not belong to this event.");
+      return res.status(400).json({
+        success: false,
+        message: "This qrcode does not belong to this event.",
+      });
+    }
+
+    if (
       ticket.status.toLowerCase() === "canceled" ||
       ticket.status.toLowerCase() === "expired"
     ) {
