@@ -243,11 +243,8 @@ router.get("/:eventId/:qrCode/validate", async (req, res) => {
       console.error("This ticket has an invalid qrCode!");
       return res
         .status(400)
-        .json({ success: false, message: "Ticket Invalid" });
+        .json({ success: false, message: "This ticket has an invalid qrCode!" });
     }
-
-    console.log("ticket.event =====>:", ticket.event.toString());
-    console.log("req.params.eventId =====>:", req.params.eventId);
 
     if (ticket.event.toString() !== req.params.eventId) {
       console.error("This qrcode does not belong to this event.");
@@ -264,12 +261,24 @@ router.get("/:eventId/:qrCode/validate", async (req, res) => {
       console.error("This ticket has been deactivated!");
       return res
         .status(400)
-        .json({ success: false, message: "Ticket Invalid" });
-    } else if (ticket.status === "active") {
-      console.log("This is a Valid Ticket");
-      return res
-        .status(200)
-        .json({ success: true, message: "Ticket Accepted" });
+        .json({ success: false, message: "This ticket has been deactivated!" });
+    }
+
+    if (ticket.scanned.hasScanned) {
+      return res.status(400).json({
+        success: false,
+        message: "This ticket has been already scanned.",
+      });
+    }
+
+    if (ticket.status === "active") {
+      console.log("This is a Valid Ticket, now scanned");
+      await ticket.markAsScanned();
+      return res.status(200).json({
+        success: true,
+        message: "Ticket Accepted",
+        foundTicket: ticket,
+      });
     }
   } catch (error) {
     console.error("Error:", error.message);
