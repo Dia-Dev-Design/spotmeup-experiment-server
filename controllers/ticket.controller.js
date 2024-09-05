@@ -11,32 +11,38 @@ const generateTickets = async (req, res, next) => {
 
   try {
     const thisEvent = await Events.findById(eventId);
-
     const thisTransaction = await Transactions.findById(transactionId);
 
-    let allTickets = thisTransaction.items.map((ticket) => {
-      return new Ticket({
-        name: ticket?.name,
-        eventDate: thisEvent.event?.date,
-        eventTime: thisEvent.event?.time,
-        price: ticket.price,
-        status: "active",
-        event: thisEvent._id,
-        layout: thisEvent.event?.layout._id,
-        block: ticket.hasTables ? ticket.id : ticket.blockId,
-        transaction: thisTransaction._id,
-        email: thisTransaction.email,
-      });
+    let allTickets = thisTransaction.items.flatMap((ticket) => {
+      const ticketsToGenerate = [];
+
+      for (let i = 0; i < ticket.tixToGenerate; i++) {
+        ticketsToGenerate.push(
+          new Ticket({
+            name: ticket?.name,
+            eventDate: thisEvent.event?.date,
+            eventTime: thisEvent.event?.time,
+            price: ticket.price,
+            status: "active",
+            event: thisEvent._id,
+            layout: thisEvent.event?.layout._id,
+            block: ticket.hasTables ? ticket.id : ticket.blockId,
+            transaction: thisTransaction._id,
+            email: thisTransaction.email,
+          })
+        );
+      }
+
+      return ticketsToGenerate; 
     });
 
-    let preTickets = allTickets.map((ticket) => {
-      return ticket.save();
-    });
+    
+    let preTickets = allTickets.map((ticket) => ticket.save());
 
     let createdTickets = await Promise.allSettled(preTickets);
 
     thisTransaction.tickets = createdTickets.map((ticket) => ticket.value._id);
-    thisTransaction.status = 'completed'
+    thisTransaction.status = 'completed';
 
     createdTickets.forEach((ticket) => {
       if (thisEvent.tickets.length) {
@@ -56,8 +62,10 @@ const generateTickets = async (req, res, next) => {
     next();
   } catch (err) {
     console.log("Error creating tickets", err);
+    res.status(500).send({ error: "Error creating tickets" });
   }
 };
+
 
 const updateValidation = async (req, res, next) => {
   try {
