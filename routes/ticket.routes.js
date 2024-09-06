@@ -189,6 +189,46 @@ router.get("/:transactionId/transaction/find", async (req, res) => {
   }
 });
 
+router.get("/:userId/events/active", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    // Encontrar todos los tickets activos para este usuario
+    const tickets = await Ticket.find({
+      buyer: userId,
+      status: "active",
+    }).populate("event layout block");
+
+    // Si no se encuentran tickets, devolvemos un mensaje adecuado
+    if (tickets.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No active tickets found for this user!",
+        tickets: [],
+      });
+    }
+
+    // Extraer los eventos únicos basados en los tickets
+    const events = Array.from(
+      new Set(tickets.map((ticket) => ticket.event._id.toString()))
+    );
+
+    // Popular los eventos encontrados
+    const populatedEvents = await Events.find({ _id: { $in: events } });
+
+    return res.status(200).json({
+      success: true,
+      message: "Active events found!",
+      events: populatedEvents,
+    });
+  } catch (error) {
+    console.error("Internal Server Error:", error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal Server Error!" });
+  }
+});
+
 router.get("/user/findAll", isAuthenticated, async (req, res) => {
   try {
     const tickets = await Ticket.find({ buyer: req.user._id }).populate(
@@ -241,9 +281,10 @@ router.get("/:eventId/:qrCode/validate", async (req, res) => {
     const ticket = await Ticket.findOne({ qrCode: req.params.qrCode });
     if (!ticket) {
       console.error("This ticket has an invalid qrCode!");
-      return res
-        .status(400)
-        .json({ success: false, message: "This ticket has an invalid qrCode!" });
+      return res.status(400).json({
+        success: false,
+        message: "This ticket has an invalid qrCode!",
+      });
     }
 
     if (ticket.event.toString() !== req.params.eventId) {

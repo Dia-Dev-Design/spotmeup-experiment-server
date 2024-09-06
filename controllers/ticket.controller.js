@@ -11,7 +11,9 @@ const generateTickets = async (req, res, next) => {
 
   try {
     const thisEvent = await Events.findById(eventId);
-    const thisTransaction = await Transactions.findById(transactionId);
+    const thisTransaction = await Transactions.findById(transactionId).populate(
+      "buyer"
+    );
 
     let allTickets = thisTransaction.items.flatMap((ticket) => {
       const ticketsToGenerate = [];
@@ -28,21 +30,21 @@ const generateTickets = async (req, res, next) => {
             layout: thisEvent.event?.layout._id,
             block: ticket.hasTables ? ticket.id : ticket.blockId,
             transaction: thisTransaction._id,
+            buyer: thisTransaction.buyer,
             email: thisTransaction.email,
           })
         );
       }
 
-      return ticketsToGenerate; 
+      return ticketsToGenerate;
     });
 
-    
     let preTickets = allTickets.map((ticket) => ticket.save());
 
     let createdTickets = await Promise.allSettled(preTickets);
 
     thisTransaction.tickets = createdTickets.map((ticket) => ticket.value._id);
-    thisTransaction.status = 'completed';
+    thisTransaction.status = "completed";
 
     createdTickets.forEach((ticket) => {
       if (thisEvent.tickets.length) {
@@ -66,11 +68,10 @@ const generateTickets = async (req, res, next) => {
   }
 };
 
-
 const updateValidation = async (req, res, next) => {
   try {
     const { tickets, event } = req;
-    
+
     const validationRecord = await Validation.findOne({ event: event._id });
 
     for (let i = 0; i < tickets.length; i++) {
