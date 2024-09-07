@@ -13,45 +13,46 @@ const Validation = require("../models/Validation.model.js");
 
 const QRCode = require("qrcode");
 const cloudinary = require("cloudinary").v2;
+const fs = require("fs");
 
 // Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_NAME,
-  api_key: process.env.CLOUDINARY_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET,
-});
+// cloudinary.config({
+//   cloud_name: process.env.CLOUDINARY_NAME,
+//   api_key: process.env.CLOUDINARY_KEY,
+//   api_secret: process.env.CLOUDINARY_SECRET,
+// });
 
 // Generate a QR code
-const generateQRCodes = async (qrTextArray) => {
-  try {
-    const qrCodesArray = await Promise.all(
-      qrTextArray.map((qrText) => QRCode.toDataURL(qrText))
-    );
-    return qrCodesArray;
-  } catch (err) {
-    console.error("QR Code Generation Error:", err);
-  }
-};
+// const generateQRCodes = async (qrTextArray) => {
+//   try {
+//     const qrCodesArray = await Promise.all(
+//       qrTextArray.map((qrText) => QRCode.toDataURL(qrText))
+//     );
+//     return qrCodesArray;
+//   } catch (err) {
+//     console.error("QR Code Generation Error:", err);
+//   }
+// };
 
 // Upload the QR code to Cloudinary
-const uploadQRCodeToCloudinary = async (dataUrl) => {
-  try {
-    const result = await cloudinary.uploader.upload(dataUrl, {
-      folder: "SpotMeUp/qr-codes",
-      resource_type: "image",
-    });
-    return result.secure_url;
-  } catch (err) {
-    console.error("Cloudinary Upload Error:", err);
-  }
-};
+// const uploadQRCodeToCloudinary = async (dataUrl) => {
+//   try {
+//     const result = await cloudinary.uploader.upload(dataUrl, {
+//       folder: "SpotMeUp/qr-codes",
+//       resource_type: "image",
+//     });
+//     return result.secure_url;
+//   } catch (err) {
+//     console.error("Cloudinary Upload Error:", err);
+//   }
+// };
 
 router.post("/:transactionId/send-email", async (req, res) => {
   try {
     const transaction = await Transactions.findById(req.params.transactionId);
     const tickets = await Ticket.find({
       transaction: req.params.transactionId,
-    });
+    }).populate("buyer event");
 
     if (!tickets.length) {
       console.error("Failed to send tickets via email!");
@@ -60,45 +61,33 @@ router.post("/:transactionId/send-email", async (req, res) => {
         .json({ success: false, message: "Failed to send tickets via email!" });
     }
 
-    const qrCodeDataUrlArray = await generateQRCodes(
-      tickets.map((ticket) => ticket.qrCode)
-    );
-
-    const qrCodeImageUrlArray = await Promise.all(
-      qrCodeDataUrlArray.map((dataUrl) => uploadQRCodeToCloudinary(dataUrl))
-    );
-
-    htmlimgs = qrCodeImageUrlArray
-      .map((imgUrl) => `<img src="${imgUrl}" alt="QR Code">`)
-      .join("\n");
-
     const html = `<div>
-                    <h1>Hello!</h1>
+                    <h1>Hello ${tickets[0].buyer.name}!</h1>
                     <p>Thank you for buying ${transaction.description} We hope you have A great time!</p>
-                    <p>Scan the QR code below at event entry:</p>
-                      ${htmlimgs}
+                   
+                    <p>Please find your tickets in the attached PDF.</p>
+
                     <p>Best regards,</p>
                     <p>The SpotMeUp Team</p>
                   </div>`;
 
-    // const html = ` <div>
-    //                 <h1>Hello Test,</h1>
-    //                 <p>Thank you for joining our platform. We're excited to have you on board!</p>
-    //                 <p>Your username is: Test</p>
-    //                 <p>Scan the QR code below to access your personalized link:</p>
-    //                 ${htmlimgs}
-    //                 <p>Best regards,</p>
-    //                 <p>The Team</p>
-    //               </div>`;
+    const pdfPath = await Ticket.generatePDFForTickets(tickets, transaction);
 
     const mailOptions = {
       from: process.env.SMTP_AUTH_USER,
-      to: tickets[0].email,
+      to: tickets[0].buyer.email, 
       subject: "Thank You For Your Purchase",
       html,
+      attachments: [
+        {
+          filename: `${tickets[0].event.name}-${tickets[0].buyer.name}.pdf`,
+          path: pdfPath,
+        },
+      ],
     };
 
     await transporter.sendMail(mailOptions);
+    fs.unlinkSync(pdfPath);
 
     return res
       .status(200)
@@ -193,13 +182,13 @@ router.get("/:userId/events/active", async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    // Encontrar todos los tickets activos para este usuario
+    const today = new Date().toISOString().split("T")[0];
+
     const tickets = await Ticket.find({
       buyer: userId,
       status: "active",
     }).populate("event layout block");
 
-    // Si no se encuentran tickets, devolvemos un mensaje adecuado
     if (tickets.length === 0) {
       return res.status(200).json({
         success: true,
@@ -208,17 +197,27 @@ router.get("/:userId/events/active", async (req, res) => {
       });
     }
 
-    // Extraer los eventos únicos basados en los tickets
+    const validTickets = tickets.filter((ticket) => {
+      return ticket.eventDate >= today;
+    });
+
+    if (validTickets.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No upcoming events found for this user!",
+        tickets: [],
+      });
+    }
+
     const events = Array.from(
-      new Set(tickets.map((ticket) => ticket.event._id.toString()))
+      new Set(validTickets.map((ticket) => ticket.event._id.toString()))
     );
 
-    // Popular los eventos encontrados
     const populatedEvents = await Events.find({ _id: { $in: events } });
 
     return res.status(200).json({
       success: true,
-      message: "Active events found!",
+      message: "Upcoming events found!",
       events: populatedEvents,
     });
   } catch (error) {
