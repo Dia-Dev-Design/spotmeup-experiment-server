@@ -13,6 +13,7 @@ const tableSchema = new Schema(
     minimumConsumption: { type: String, default: 0 },
     number: {type:Number, default:0},
     maxCapacity: { type: Number, default: 2 },
+    extraTickets: { type: Number, default: 0 },
     name: { type: String, default: "" },
     x: { type: Number, default: 0 },
     y: { type: Number, default: 0 },
