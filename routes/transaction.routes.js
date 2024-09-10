@@ -172,7 +172,7 @@ router.get(
   (req, res) => {
     const { eventId, transactionId } = req.params;
     //redirecting to React App / Client
-    res.redirect(`http://localhost:5173/approved/${eventId}/${transactionId}`);
+    res.redirect(`https://spotmeup-test.netlify.app/approved/${eventId}/${transactionId}`);
   }
 );
 
