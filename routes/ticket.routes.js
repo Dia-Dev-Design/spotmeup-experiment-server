@@ -74,8 +74,8 @@ router.post("/:transactionId/send-email", async (req, res) => {
     const pdfPath = await Ticket.generatePDFForTickets(tickets, transaction);
 
     const mailOptions = {
-      from: process.env.SMTP_AUTH_USER,
-      to: tickets[0].buyer.email, 
+      from: `Spot Me Up <${process.env.SMTP_AUTH_USER}>`,
+      to: tickets[0].buyer.email,
       subject: "Thank You For Your Purchase",
       html,
       attachments: [
