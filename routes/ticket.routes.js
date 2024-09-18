@@ -7,45 +7,10 @@ const transporter = require("../configs/nodemailer.config.js");
 const Ticket = require("../models/Tickets.model");
 const Transactions = require("../models/Transaction.model.js");
 const Events = require("../models/Events.model");
-const Layouts = require("../models/Layouts.model");
-const Blocks = require("../models/Blocks.model");
-const Validation = require("../models/Validation.model.js");
 
 const QRCode = require("qrcode");
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
-
-// Configure Cloudinary
-// cloudinary.config({
-//   cloud_name: process.env.CLOUDINARY_NAME,
-//   api_key: process.env.CLOUDINARY_KEY,
-//   api_secret: process.env.CLOUDINARY_SECRET,
-// });
-
-// Generate a QR code
-// const generateQRCodes = async (qrTextArray) => {
-//   try {
-//     const qrCodesArray = await Promise.all(
-//       qrTextArray.map((qrText) => QRCode.toDataURL(qrText))
-//     );
-//     return qrCodesArray;
-//   } catch (err) {
-//     console.error("QR Code Generation Error:", err);
-//   }
-// };
-
-// Upload the QR code to Cloudinary
-// const uploadQRCodeToCloudinary = async (dataUrl) => {
-//   try {
-//     const result = await cloudinary.uploader.upload(dataUrl, {
-//       folder: "SpotMeUp/qr-codes",
-//       resource_type: "image",
-//     });
-//     return result.secure_url;
-//   } catch (err) {
-//     console.error("Cloudinary Upload Error:", err);
-//   }
-// };
 
 router.post("/:transactionId/send-email", async (req, res) => {
   try {
@@ -213,7 +178,9 @@ router.get("/:userId/events/active", async (req, res) => {
       new Set(validTickets.map((ticket) => ticket.event._id.toString()))
     );
 
-    const populatedEvents = await Events.find({ _id: { $in: events } });
+    const populatedEvents = await Events.find({
+      _id: { $in: events },
+    }).populate("tickets");
 
     return res.status(200).json({
       success: true,

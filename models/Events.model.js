@@ -18,7 +18,7 @@ const eventSchema = new Schema(
 
     venue: { type: Schema.Types.ObjectId, ref: "Venues" },
     layout: { type: Schema.Types.ObjectId, ref: "Layouts" },
-    tickets: [{ type: Schema.Types.ObjectId, ref: "Tickets" }],
+    tickets: [{ type: Schema.Types.ObjectId, ref: "Ticket" }],
     host: { type: Schema.Types.ObjectId, ref: "Users" },
   },
   {
