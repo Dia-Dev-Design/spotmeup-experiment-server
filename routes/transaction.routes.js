@@ -4,19 +4,21 @@ const Transactions = require("../models/Transaction.model.js");
 var router = express.Router();
 const isAuthenticated = require("../middleware/isAuthenticated.js");
 const transporter = require("../configs/nodemailer.config.js");
-const QRCode = require('qrcode');
+const QRCode = require("qrcode");
 const { v4: uuidv4 } = require("uuid");
 
-const { generateTickets, updateValidation } = require('../controllers/ticket.controller.js')
+const {
+  generateTickets,
+  updateValidation,
+} = require("../controllers/ticket.controller.js");
 
-
-const cloudinary = require('cloudinary').v2;
+const cloudinary = require("cloudinary").v2;
 
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_NAME,
   api_key: process.env.CLOUDINARY_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET
+  api_secret: process.env.CLOUDINARY_SECRET,
 });
 
 // Generate a QR code
@@ -24,7 +26,7 @@ const generateQRCode = async (text) => {
   try {
     return await QRCode.toDataURL(text);
   } catch (err) {
-    console.error('QR Code Generation Error:', err);
+    console.error("QR Code Generation Error:", err);
   }
 };
 
@@ -32,16 +34,16 @@ const generateQRCode = async (text) => {
 const uploadQRCodeToCloudinary = async (dataUrl) => {
   try {
     const result = await cloudinary.uploader.upload(dataUrl, {
-      folder: 'SpotMeUp/qr-codes',
-      resource_type: 'image',
+      folder: "SpotMeUp/qr-codes",
+      resource_type: "image",
     });
     return result.secure_url;
   } catch (err) {
-    console.error('Cloudinary Upload Error:', err);
+    console.error("Cloudinary Upload Error:", err);
   }
 };
 
-router.post('/send-email', async (req, res) => {
+router.post("/send-email", async (req, res) => {
   try {
     const { recipientEmail, subject } = req.body;
     const qrCodeDataUrl = await generateQRCode(uuidv4());
@@ -55,29 +57,34 @@ router.post('/send-email', async (req, res) => {
       <img src="${qrCodeImageUrl}" alt="QR Code">
       <p>Best regards,</p>
       <p>The Team</p>
-    </div>`
-  
+    </div>`;
+
     const mailOptions = {
       from: "no-reply@spotmeup.net",
       to: recipientEmail,
       subject,
       html,
     };
-  
-      await transporter.sendMail(mailOptions);
-      res.status(200).json({ message: 'Email sent successfully!' });
-    } catch (error) {
-      console.error('Error sending email:', error);
-      res.status(500).json({ error: 'Failed to send email' });
-    }
-  });
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ message: "Email sent successfully!" });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    res.status(500).json({ error: "Failed to send email" });
+  }
+});
 
 router.post("/create", async (req, res) => {
   try {
     const transaction = await Transactions.create(req.body);
-    return res
-      .status(201)
-      .json({ success: true, message: "Transaction Created!", transaction });
+
+    const populatedTransaction = await transaction.populate("buyer");
+
+    return res.status(201).json({
+      success: true,
+      message: "Transaction Created!",
+      transaction: populatedTransaction,
+    });
   } catch (error) {
     console.error("Error:", error.message);
     res.status(500).json({ success: false, message: "Internal Server Error!" });
@@ -87,13 +94,17 @@ router.post("/create", async (req, res) => {
 router.get("/:transactionId/find", async (req, res) => {
   try {
     const transaction = await Transactions.findById(req.params.transactionId);
-    let populatedTransaction = await transaction.populate("tickets")
+    let populatedTransaction = await transaction.populate("tickets buyer");
     if (!transaction) {
       return res
         .status(400)
         .json({ success: true, message: "Transaction Not Found!" });
     }
-    return res.status(200).json({ success: true, message: "OK!", transaction: populatedTransaction });
+    return res.status(200).json({
+      success: true,
+      message: "OK!",
+      transaction: populatedTransaction,
+    });
   } catch (error) {
     console.error("Error:", error.message);
     return res
@@ -106,13 +117,11 @@ router.get("/findAll", async (req, res) => {
   try {
     const transactions = await Transactions.find();
     if (!transactions.length) {
-      return res
-        .status(200)
-        .json({
-          success: true,
-          message: "No Transactions Found!",
-          transactions,
-        });
+      return res.status(200).json({
+        success: true,
+        message: "No Transactions Found!",
+        transactions,
+      });
     }
     return res
       .status(200)
@@ -146,25 +155,26 @@ router.get("/user/findAll", isAuthenticated, async (req, res) => {
   }
 });
 
-
-router.get('/get-count', async (req, res, next) => {
+router.get("/get-count", async (req, res, next) => {
   try {
-    const count = await Transactions.countDocuments()
-    console.log("This is the number of transactions========>", count)
-    res.status(200).json( count )
-
+    const count = await Transactions.countDocuments();
+    console.log("This is the number of transactions========>", count);
+    res.status(200).json(count);
   } catch (err) {
-    res.status(500).json("Message needs an argument")
+    res.status(500).json("Message needs an argument");
   }
-})
+});
 
-router.get('/approved/:eventId/:transactionId', generateTickets, updateValidation, (req, res) => {
-
-  const { eventId, transactionId } = req.params
-  //redirecting to React App / Client
-  res.redirect(`http://localhost:5173/approved/${eventId}/${transactionId}`)
-})
-
+router.get(
+  "/approved/:eventId/:transactionId",
+  generateTickets,
+  updateValidation,
+  (req, res) => {
+    const { eventId, transactionId } = req.params;
+    //redirecting to React App / Client
+    res.redirect(`https://spotmeup-test.netlify.app/approved/${eventId}/${transactionId}`);
+  }
+);
 
 module.exports = router;
 

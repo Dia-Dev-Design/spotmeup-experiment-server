@@ -5,53 +5,55 @@ const isAuthenticated = require("../middleware/isAuthenticated.js");
 const transporter = require("../configs/nodemailer.config.js");
 
 const Ticket = require("../models/Tickets.model");
+const Transactions = require("../models/Transaction.model.js");
 const Events = require("../models/Events.model");
 const Layouts = require("../models/Layouts.model");
 const Blocks = require("../models/Blocks.model");
-const Transactions = require("../models/Transaction.model.js");
 const Validation = require("../models/Validation.model.js");
 
 const QRCode = require("qrcode");
 const cloudinary = require("cloudinary").v2;
+const fs = require("fs");
 
 // Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_NAME,
-  api_key: process.env.CLOUDINARY_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET,
-});
+// cloudinary.config({
+//   cloud_name: process.env.CLOUDINARY_NAME,
+//   api_key: process.env.CLOUDINARY_KEY,
+//   api_secret: process.env.CLOUDINARY_SECRET,
+// });
 
 // Generate a QR code
-const generateQRCodes = async (qrTextArray) => {
-  try {
-    const qrCodesArray = await Promise.all(
-      qrTextArray.map((qrText) => QRCode.toDataURL(qrText))
-    );
-    return qrCodesArray;
-  } catch (err) {
-    console.error("QR Code Generation Error:", err);
-  }
-};
+// const generateQRCodes = async (qrTextArray) => {
+//   try {
+//     const qrCodesArray = await Promise.all(
+//       qrTextArray.map((qrText) => QRCode.toDataURL(qrText))
+//     );
+//     return qrCodesArray;
+//   } catch (err) {
+//     console.error("QR Code Generation Error:", err);
+//   }
+// };
 
 // Upload the QR code to Cloudinary
-const uploadQRCodeToCloudinary = async (dataUrl) => {
-  try {
-    const result = await cloudinary.uploader.upload(dataUrl, {
-      folder: "SpotMeUp/qr-codes",
-      resource_type: "image",
-    });
-    return result.secure_url;
-  } catch (err) {
-    console.error("Cloudinary Upload Error:", err);
-  }
-};
+// const uploadQRCodeToCloudinary = async (dataUrl) => {
+//   try {
+//     const result = await cloudinary.uploader.upload(dataUrl, {
+//       folder: "SpotMeUp/qr-codes",
+//       resource_type: "image",
+//     });
+//     return result.secure_url;
+//   } catch (err) {
+//     console.error("Cloudinary Upload Error:", err);
+//   }
+// };
 
 router.post("/:transactionId/send-email", async (req, res) => {
   try {
     const transaction = await Transactions.findById(req.params.transactionId);
     const tickets = await Ticket.find({
       transaction: req.params.transactionId,
-    });
+
+    }).populate("buyer event");
 
     if (!tickets.length) {
       console.error("Failed to send tickets via email!");
@@ -60,26 +62,16 @@ router.post("/:transactionId/send-email", async (req, res) => {
         .json({ success: false, message: "Failed to send tickets via email!" });
     }
 
-    const qrCodeDataUrlArray = await generateQRCodes(
-      tickets.map((ticket) => ticket.qrCode)
-    );
-
-    const qrCodeImageUrlArray = await Promise.all(
-      qrCodeDataUrlArray.map((dataUrl) => uploadQRCodeToCloudinary(dataUrl))
-    );
-
-    htmlimgs = qrCodeImageUrlArray
-      .map((imgUrl) => `<img src="${imgUrl}" alt="QR Code">`)
-      .join("\n");
-
     const html = `<div>
-                    <h1>Hello!</h1>
+                    <h1>Hello ${tickets[0].buyer.name}!</h1>
                     <p>Thank you for buying ${transaction.description} We hope you have A great time!</p>
-                    <p>Scan the QR code below at event entry:</p>
-                      ${htmlimgs}
+                   
+                    <p>Please find your tickets in the attached PDF.</p>
+
                     <p>Best regards,</p>
                     <p>The SpotMeUp Team</p>
                   </div>`;
+
 
     // const html = ` <div>
     //                 <h1>Hello Test,</h1>
@@ -91,14 +83,23 @@ router.post("/:transactionId/send-email", async (req, res) => {
     //                 <p>The Team</p>
     //               </div>`;
 
+    const pdfPath = await Ticket.generatePDFForTickets(tickets, transaction);
+
     const mailOptions = {
-      from: process.env.SMTP_AUTH_USER,
-      to: tickets[0].email,
+      from: `Spot Me Up <${process.env.SMTP_AUTH_USER}>`,
+      to: tickets[0].buyer.email,
       subject: "Thank You For Your Purchase",
       html,
+      attachments: [
+        {
+          filename: `${tickets[0].event.name}-${tickets[0].buyer.name}.pdf`,
+          path: pdfPath,
+        },
+      ],
     };
 
     await transporter.sendMail(mailOptions);
+    fs.unlinkSync(pdfPath);
 
     return res
       .status(200)
@@ -191,6 +192,56 @@ router.get("/:transactionId/transaction/find", async (req, res) => {
   }
 });
 
+router.get("/:userId/events/active", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const tickets = await Ticket.find({
+      buyer: userId,
+      status: "active",
+    }).populate("event layout block");
+
+    if (tickets.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No active tickets found for this user!",
+        tickets: [],
+      });
+    }
+
+    const validTickets = tickets.filter((ticket) => {
+      return ticket.eventDate >= today;
+    });
+
+    if (validTickets.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No upcoming events found for this user!",
+        tickets: [],
+      });
+    }
+
+    const events = Array.from(
+      new Set(validTickets.map((ticket) => ticket.event._id.toString()))
+    );
+
+    const populatedEvents = await Events.find({ _id: { $in: events } });
+
+    return res.status(200).json({
+      success: true,
+      message: "Upcoming events found!",
+      events: populatedEvents,
+    });
+  } catch (error) {
+    console.error("Internal Server Error:", error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal Server Error!" });
+  }
+});
+
 router.get("/user/findAll", isAuthenticated, async (req, res) => {
   try {
     const tickets = await Ticket.find({ buyer: req.user._id }).populate(
@@ -240,9 +291,10 @@ router.get("/findAll", async (req, res) => {
 
 router.get("/:eventId/:qrCode/validate", async (req, res) => {
   try {
-    const ticket = Ticket.findOne({ qrCode: req.params.qrCode });
+    const ticket = await Ticket.findOne({ qrCode: req.params.qrCode });
     if (!ticket) {
       console.error("This ticket has an invalid qrCode!");
+
       return res
         .status(400)
         .json({ success: false, message: "Ticket Invalid" });
@@ -253,6 +305,7 @@ router.get("/:eventId/:qrCode/validate", async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Ticket Invalid" });
+
     }
 
     if (
@@ -262,12 +315,24 @@ router.get("/:eventId/:qrCode/validate", async (req, res) => {
       console.error("This ticket has been deactivated!");
       return res
         .status(400)
-        .json({ success: false, message: "Ticket Invalid" });
-    } else if (ticket.status === "active") {
-      console.log("This is a Valid Ticket");
-      return res
-        .status(200)
-        .json({ success: true, message: "Ticket Accepted" });
+        .json({ success: false, message: "This ticket has been deactivated!" });
+    }
+
+    if (ticket.scanned.hasScanned) {
+      return res.status(400).json({
+        success: false,
+        message: "This ticket has been already scanned.",
+      });
+    }
+
+    if (ticket.status === "active") {
+      console.log("This is a Valid Ticket, now scanned");
+      await ticket.markAsScanned();
+      return res.status(200).json({
+        success: true,
+        message: "Ticket Accepted",
+        foundTicket: ticket,
+      });
     }
   } catch (error) {
     console.error("Error:", error.message);

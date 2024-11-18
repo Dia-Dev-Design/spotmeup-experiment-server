@@ -21,7 +21,7 @@ const isValidTimeFormat = (timeString) => {
 router.post("/create", 
   isAuthenticated, 
   async (req, res) => {
-  console.log("Event Body ===>", req.body);
+  // console.log("Event Body ===>", req.body);
   try {
     if (!req.user._id) {
       console.error("A userId is required to create an event!");
@@ -89,7 +89,7 @@ router.post("/create",
 
 router.put("/:eventId/edit", async (req, res) => {
   try {
-    const event = Events.findById(req.params.eventId);
+    const event = await Events.findById(req.params.eventId);
     if ("date" in req.body || "time" in req.body) {
       if (
         !isValidDateFormat(req.body.date) ||
