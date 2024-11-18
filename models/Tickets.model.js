@@ -27,7 +27,7 @@ const ticketSchema = new Schema(
     block: { type: Schema.Types.ObjectId, ref: "Blocks" },
     //add tableID, if any
     //extras (bottles), if any
-    transaction: { type: Schema.Types.ObjectId, ref: "Transaction" },
+    transaction: { type: Schema.Types.ObjectId, ref: "Transactions" },
     email: { type: String },
   },
   {

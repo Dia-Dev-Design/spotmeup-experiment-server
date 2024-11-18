@@ -7,45 +7,10 @@ const transporter = require("../configs/nodemailer.config.js");
 const Ticket = require("../models/Tickets.model");
 const Transactions = require("../models/Transaction.model.js");
 const Events = require("../models/Events.model");
-const Layouts = require("../models/Layouts.model");
-const Blocks = require("../models/Blocks.model");
-const Validation = require("../models/Validation.model.js");
 
 const QRCode = require("qrcode");
 const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
-
-// Configure Cloudinary
-// cloudinary.config({
-//   cloud_name: process.env.CLOUDINARY_NAME,
-//   api_key: process.env.CLOUDINARY_KEY,
-//   api_secret: process.env.CLOUDINARY_SECRET,
-// });
-
-// Generate a QR code
-// const generateQRCodes = async (qrTextArray) => {
-//   try {
-//     const qrCodesArray = await Promise.all(
-//       qrTextArray.map((qrText) => QRCode.toDataURL(qrText))
-//     );
-//     return qrCodesArray;
-//   } catch (err) {
-//     console.error("QR Code Generation Error:", err);
-//   }
-// };
-
-// Upload the QR code to Cloudinary
-// const uploadQRCodeToCloudinary = async (dataUrl) => {
-//   try {
-//     const result = await cloudinary.uploader.upload(dataUrl, {
-//       folder: "SpotMeUp/qr-codes",
-//       resource_type: "image",
-//     });
-//     return result.secure_url;
-//   } catch (err) {
-//     console.error("Cloudinary Upload Error:", err);
-//   }
-// };
 
 router.post("/:transactionId/send-email", async (req, res) => {
   try {
@@ -227,7 +192,9 @@ router.get("/:userId/events/active", async (req, res) => {
       new Set(validTickets.map((ticket) => ticket.event._id.toString()))
     );
 
-    const populatedEvents = await Events.find({ _id: { $in: events } });
+    const populatedEvents = await Events.find({
+      _id: { $in: events },
+    }).populate("tickets");
 
     return res.status(200).json({
       success: true,
@@ -363,6 +330,88 @@ router.delete("/:ticketId/delete", async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Internal Server Error!" });
+  }
+});
+
+router.get("/event/:eventId/sales-summary", async (req, res) => {
+  const { eventId } = req.params;
+
+  try {
+    console.log("Event ID:", eventId);
+
+    // Find active tickets for the event
+    const preTickets = await Ticket.find({
+      event: eventId,
+      status: "active",
+    });
+
+    // console.log("these are preTickets ===>", preTickets);
+
+    const preTransactions = preTickets.map((ticket) => {
+      return ticket.transaction.toString();
+    });
+
+    // console.log("These are transaction Promises ====>", transactionPromises);
+
+    const uniqueTransactions = [...new Set(preTransactions)];
+
+    console.log("These are unique transactions", uniqueTransactions);
+
+    let transactions = [];
+
+    for (let i = 0; i < uniqueTransactions.length; i++) {
+      let thisTransaction = await Transactions.findById(uniqueTransactions[i]);
+
+      transactions.push(thisTransaction);
+    }
+
+    let ticketsWithTables = [];
+    let ticketsWithoutTables = [];
+    let ticketsWithoutTablesList = [];
+
+    // Loop through each active ticket
+    transactions.forEach((transaction) => {
+      // Check if the ticket has a valid transaction and items array
+      if (transaction.items && Array.isArray(transaction.items)) {
+        // Iterate over the items to check if it has tables
+        for (const item of transaction.items) {
+          if (item.hasTables === true) {
+            ticketsWithTables.push(item.tixToGenerate); // Add to array if it has tables
+          }
+          if (!item.hasTables) {
+            ticketsWithoutTables.push(item.tixToGenerate);
+          }
+        }
+        transaction.items.forEach((item, i) => {
+          if (item.hasTables === false) {
+            ticketsWithoutTablesList.push(transaction.tickets[i]);
+          }
+        });
+      }
+    });
+res.status(200).json({
+      event: eventId,
+      // Active tickets
+      ticketsActive: preTickets.length,
+
+      // Get tickets with tables & tickets without tables
+      ticketsWithTables: ticketsWithTables.reduce((a, b) => a + b, 0),
+      ticketsWithoutTables: ticketsWithoutTables.reduce((a, b) => a + b, 0),
+
+      // Get total tickets
+      ticketTotal:
+        ticketsWithTables.reduce((a, b) => a + b, 0) +
+        ticketsWithoutTables.reduce((a, b) => a + b, 0),
+
+      // List of tickets without tables
+      ticketsWithoutTablesList,
+    });
+  } catch (error) {
+    console.error("Error retrieving sales data:", error.message);
+    res.status(500).json({
+      message: "Error retrieving sales data",
+      success: false,
+    });
   }
 });
 
