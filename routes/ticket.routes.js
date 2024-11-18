@@ -311,4 +311,86 @@ router.delete("/:ticketId/delete", async (req, res) => {
   }
 });
 
+router.get("/event/:eventId/sales-summary", async (req, res) => {
+  const { eventId } = req.params;
+
+  try {
+    console.log("Event ID:", eventId);
+
+    // Find active tickets for the event
+    const preTickets = await Ticket.find({
+      event: eventId,
+      status: "active",
+    });
+
+    // console.log("these are preTickets ===>", preTickets);
+
+    const preTransactions = preTickets.map((ticket) => {
+      return ticket.transaction.toString();
+    });
+
+    // console.log("These are transaction Promises ====>", transactionPromises);
+
+    const uniqueTransactions = [...new Set(preTransactions)];
+
+    console.log("These are unique transactions", uniqueTransactions);
+
+    let transactions = [];
+
+    for (let i = 0; i < uniqueTransactions.length; i++) {
+      let thisTransaction = await Transactions.findById(uniqueTransactions[i]);
+
+      transactions.push(thisTransaction);
+    }
+
+    let ticketsWithTables = [];
+    let ticketsWithoutTables = [];
+    let ticketsWithoutTablesList = [];
+
+    // Loop through each active ticket
+    transactions.forEach((transaction) => {
+      // Check if the ticket has a valid transaction and items array
+      if (transaction.items && Array.isArray(transaction.items)) {
+        // Iterate over the items to check if it has tables
+        for (const item of transaction.items) {
+          if (item.hasTables === true) {
+            ticketsWithTables.push(item.tixToGenerate); // Add to array if it has tables
+          }
+          if (!item.hasTables) {
+            ticketsWithoutTables.push(item.tixToGenerate);
+          }
+        }
+        transaction.items.forEach((item, i) => {
+          if (item.hasTables === false) {
+            ticketsWithoutTablesList.push(transaction.tickets[i]);
+          }
+        });
+      }
+    });
+res.status(200).json({
+      event: eventId,
+      // Active tickets
+      ticketsActive: preTickets.length,
+
+      // Get tickets with tables & tickets without tables
+      ticketsWithTables: ticketsWithTables.reduce((a, b) => a + b, 0),
+      ticketsWithoutTables: ticketsWithoutTables.reduce((a, b) => a + b, 0),
+
+      // Get total tickets
+      ticketTotal:
+        ticketsWithTables.reduce((a, b) => a + b, 0) +
+        ticketsWithoutTables.reduce((a, b) => a + b, 0),
+
+      // List of tickets without tables
+      ticketsWithoutTablesList,
+    });
+  } catch (error) {
+    console.error("Error retrieving sales data:", error.message);
+    res.status(500).json({
+      message: "Error retrieving sales data",
+      success: false,
+    });
+  }
+});
+
 module.exports = router;
