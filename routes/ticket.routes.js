@@ -52,6 +52,7 @@ router.post("/:transactionId/send-email", async (req, res) => {
     const transaction = await Transactions.findById(req.params.transactionId);
     const tickets = await Ticket.find({
       transaction: req.params.transactionId,
+
     }).populate("buyer event");
 
     if (!tickets.length) {
@@ -70,6 +71,17 @@ router.post("/:transactionId/send-email", async (req, res) => {
                     <p>Best regards,</p>
                     <p>The SpotMeUp Team</p>
                   </div>`;
+
+
+    // const html = ` <div>
+    //                 <h1>Hello Test,</h1>
+    //                 <p>Thank you for joining our platform. We're excited to have you on board!</p>
+    //                 <p>Your username is: Test</p>
+    //                 <p>Scan the QR code below to access your personalized link:</p>
+    //                 ${htmlimgs}
+    //                 <p>Best regards,</p>
+    //                 <p>The Team</p>
+    //               </div>`;
 
     const pdfPath = await Ticket.generatePDFForTickets(tickets, transaction);
 
@@ -93,8 +105,10 @@ router.post("/:transactionId/send-email", async (req, res) => {
       .status(200)
       .json({ success: true, message: "Email sent successfully!" });
   } catch (error) {
-    console.error("Error sending email:", error);
-    res.status(500).json({ error, messsage: "Failed to send email" });
+    console.error("Error sending email:", error.message);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to send email", error });
   }
 });
 
@@ -280,18 +294,18 @@ router.get("/:eventId/:qrCode/validate", async (req, res) => {
     const ticket = await Ticket.findOne({ qrCode: req.params.qrCode });
     if (!ticket) {
       console.error("This ticket has an invalid qrCode!");
-      return res.status(400).json({
-        success: false,
-        message: "This ticket has an invalid qrCode!",
-      });
+
+      return res
+        .status(400)
+        .json({ success: false, message: "Ticket Invalid" });
     }
 
-    if (ticket.event.toString() !== req.params.eventId) {
+    if (ticket.event !== req.params.eventId) {
       console.error("This qrcode does not belong to this event.");
-      return res.status(400).json({
-        success: false,
-        message: "This qrcode does not belong to this event.",
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "Ticket Invalid" });
+
     }
 
     if (
@@ -327,6 +341,14 @@ router.get("/:eventId/:qrCode/validate", async (req, res) => {
       .json({ success: false, message: "Internal Server Error!" });
   }
 });
+
+// router.get("/:qrCode/validate", async (req, res) =>{
+//   try {
+//     const ticket = Ticket.findOne({qrCode})
+//   } catch (error) {
+
+//   }
+// }
 
 router.delete("/:ticketId/delete", async (req, res) => {
   try {
