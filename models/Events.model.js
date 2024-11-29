@@ -2,7 +2,7 @@ const { Schema, model } = require("mongoose");
 const eventSchema = new Schema(
   {
     name: String,
-    images: [{ type: String, default: "" }],
+    images: [{ type: String, default: "https://www.clker.com/cliparts/q/L/P/Y/t/6/no-image-available-hi.png" }],
     eventType: String,
     status: { type: String, default: "Available" },
     hasVenue: Boolean,
